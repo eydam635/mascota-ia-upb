@@ -1,50 +1,60 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests # Usamos requests para que sea ultra simple
 
 app = Flask(__name__)
-CORS(app)
 
-# 1. CONFIGURACIÓN
-HF_TOKEN = "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"
-# Usamos Llama 3 de Meta, es increíblemente bueno
-API_URL = "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct"
-headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+# SOLUCIÓN AL ERROR DE CONEXIÓN: Permite que Google Sites entre sin bloqueos
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-CONTEXTO_UPB = """
-Eres 'SABIO BÚHO', el asistente de admisiones de la carrera de IA en la UPB.
-Información: Carrera 4.5 años, Examen PAA 200 bs, Puntaje min 1100, WhatsApp 78508450.
-Responde de forma corta y amable.
-"""
+# Base de datos extraída de tus documentos
+INFO_UPB = {
+    "ia": "La carrera de Ingeniería de Inteligencia Artificial dura 4.5 años (9 semestres). Se enfoca en crear sistemas que aprenden y razonan.",
+    "paa": "El examen PAA cuesta 200 bs. Mide Razonamiento Verbal, Matemático y Redacción Indirecta.",
+    "puntaje": "El puntaje mínimo para ser admitido es de 1100/1600 puntos.",
+    "requisitos": "Necesitas cargar tu ensayo, CV, libreta de 5to de secundaria y certificado de inglés (si tienes).",
+    "prepa": "El preuniversitario es obligatorio para nivelación. Para ingeniería llevas Matemáticas, Física y Química.",
+    "contacto": "Para costos exactos de mensualidades, comunícate al WhatsApp 78508450.",
+    "becas": "Existen varios programas de becas basados en tu nota del examen de admisión."
+}
 
 @app.route('/')
 def home():
-    return "Servidor del Sabio Búho (Llama 3) Online"
+    return "Servidor de Yupi Bot funcionando y listo para Google Sites."
 
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
-        data = request.get_json(force=True)
-        user_message = data.get('message', '')
-
-        # Preparamos la consulta para Llama 3
-        payload = {
-            "inputs": f"<|system|>\n{CONTEXTO_UPB}\n<|user|>\n{user_message}\n<|assistant|>\n",
-            "parameters": {"max_new_tokens": 250, "temperature": 0.7}
-        }
-
-        response = requests.post(API_URL, headers=headers, json=payload)
-        resultado = response.json()
-
-        # Limpiamos la respuesta para que solo salga lo que dijo el Búho
-        bot_text = resultado[0]['generated_text'].split("<|assistant|>\n")[-1]
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({"response": "No recibí mensaje."}), 400
         
-        return jsonify({"response": bot_text})
+        user_msg = data['message'].lower()
+        
+        # Lógica de respuestas inteligentes
+        if "ia" in user_msg or "inteligencia" in user_msg:
+            reply = INFO_UPB["ia"]
+        elif "examen" in user_msg or "paa" in user_msg or "costo" in user_msg:
+            reply = INFO_UPB["paa"]
+        elif "punto" in user_msg or "puntaje" in user_msg:
+            reply = INFO_UPB["puntaje"]
+        elif "precio" in user_msg or "mensualidad" in user_msg or "pagar" in user_msg:
+            reply = INFO_UPB["contacto"]
+        elif "beca" in user_msg:
+            reply = INFO_UPB["becas"]
+        elif "prepa" in user_msg or "nivelacion" in user_msg:
+            reply = INFO_UPB["prepa"]
+        elif "requisito" in user_msg or "papeles" in user_msg:
+            reply = INFO_UPB["requisitos"]
+        else:
+            reply = "¡Hola! Soy Yupi. Pregúntame sobre la carrera de IA, el examen PAA (200 bs), puntajes mínimos o la Prepa UPB."
+
+        return jsonify({"response": reply})
 
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"response": "Lo siento, mi conexión cerebral está lenta. ¿Repetimos?"}), 200
+        return jsonify({"response": "Lo siento, tuve un error interno. Intenta de nuevo."}), 500
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
