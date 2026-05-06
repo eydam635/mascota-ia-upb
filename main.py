@@ -4,56 +4,62 @@ from flask_cors import CORS
 import google.generativeai as genai
 
 app = Flask(__name__)
-# CORS total para evitar bloqueos de Google Sites
+# Permitimos que Google Sites se conecte sin restricciones de seguridad
 CORS(app)
 
-# 1. CONFIGURACIÓN DE LA IA
-# Asegúrate de que esta sea tu API KEY real de Google AI Studio
+# 1. CONFIGURACIÓN DE LA IA CON TU API KEY
 GEMINI_KEY = "AIzaSyA4EEjVQIihdP3HKLTjfAgpWkLbcQ5bDZc" 
 genai.configure(api_key=GEMINI_KEY)
 
-# Usamos el modelo más estable y rápido
+# Usamos el modelo más rápido y actualizado
 model = genai.GenerativeModel('gemini-1.5-flash')
 
+# 2. EL "CEREBRO" DEL BÚHO (Aquí está toda la info de la UPB)
 CONTEXTO_UPB = """
-Eres 'SABIO BÚHO', el asistente oficial de admisiones de la UPB. 
-Responde de forma amable y corta basándote en esto:
-- Carrera IA: 4.5 años.
-- Examen PAA: 200 bs.
-- Puntaje mínimo: 1100.
-- WhatsApp: 78508450.
-Si no sabes algo, pide que escriban al WhatsApp.
+Eres 'SABIO BÚHO', el asistente oficial de admisiones de la carrera de Inteligencia Artificial en la UPB.
+Tu tono es sabio, amable y muy servicial.
+
+DATOS IMPORTANTES:
+- Carrera: Ingeniería de Inteligencia Artificial (9 semestres / 4.5 años).
+- Examen PAA: Cuesta 200 bs. Mide razonamiento matemático, verbal y redacción.
+- Puntaje de ingreso: Mínimo 1100 sobre 1600 puntos.
+- Requisitos: Ensayo personal, CV actualizado y libreta de 5to de secundaria.
+- Prepa UPB: Es el curso de nivelación obligatorio.
+- Becas: Se otorgan por excelencia en el examen PAA.
+- Contacto: WhatsApp de Admisiones 78508450.
+
+REGLA DE ORO: Si te preguntan algo que NO está aquí, diles amablemente que contacten al WhatsApp 78508450.
 """
 
 @app.route('/')
 def home():
-    return "Servidor del Sabio Búho Operativo"
+    return "Servidor del Sabio Búho Operativo y Conectado"
 
 @app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
-    # Manejo de la petición pre-vuelo de CORS
+    # Manejo de la "pre-consulta" de los navegadores
     if request.method == 'OPTIONS':
         return jsonify({"status": "ok"}), 200
 
     try:
-        # Forzamos la lectura del JSON
+        # Leemos la pregunta del usuario
         data = request.get_json(force=True, silent=True)
-        if not data:
-            return jsonify({"response": "Error: No se recibió JSON"}), 400
-            
-        user_message = data.get('message', '')
+        user_message = data.get('message', '') if data else ""
         
-        # Llamada a Gemini con manejo de errores interno
+        if not user_message:
+            return jsonify({"response": "¡Hola! Soy el Sabio Búho. ¿En qué puedo ayudarte hoy?"}), 200
+
+        # La IA procesa la respuesta usando el contexto
         prompt = f"{CONTEXTO_UPB}\nUsuario: {user_message}\nSabio Búho:"
         response = model.generate_content(prompt)
         
         return jsonify({"response": response.text})
 
     except Exception as e:
-        # Este print aparecerá en tus logs de Render para que sepas qué falló
-        print(f"DEBUG ERROR: {str(e)}")
-        return jsonify({"response": "Lo siento, mi conexión cerebral falló. Intenta de nuevo en un momento."}), 200
+        print(f"Error interno: {e}")
+        return jsonify({"response": "Lo siento, tuve un pequeño problema de conexión. ¿Puedes repetir tu pregunta?"}), 200
 
 if __name__ == "__main__":
+    # Render asigna el puerto automáticamente
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
