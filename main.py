@@ -1,55 +1,44 @@
 import os
+import google.generativeai as genai
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import google.generativeai as genai
 
 app = Flask(__name__)
 CORS(app)
 
-# CONFIGURACIÓN DE LA IA
-# Usa tu nueva API KEY aquí
-GEMINI_KEY = "AIzaSyA4EEjVQIihdP3HKLTjfAgpWkLbcQ5bDZc" 
+# Tu clave que confirmamos que es válida
+GEMINI_KEY = "AIzaSyA4EEjVQIihdP3HKLTjfAgpWkLbcQ5bDZc"
 genai.configure(api_key=GEMINI_KEY)
 
-# USAMOS EL MODELO LATEST PARA EVITAR EL ERROR 404
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+# Intentamos configurar el modelo de forma más genérica
+def get_model_response(prompt_text):
+    # Lista de nombres posibles según la versión de la API
+    nombres_modelos = ['gemini-1.5-flash', 'models/gemini-1.5-flash', 'gemini-pro']
+    
+    for nombre in nombres_modelos:
+        try:
+            model = genai.GenerativeModel(nombre)
+            response = model.generate_content(prompt_text)
+            return response.text
+        except Exception as e:
+            print(f"Fallo con {nombre}: {e}")
+            continue
+    return "Lo siento, mis sistemas están en mantenimiento. Intenta de nuevo más tarde."
 
-CONTEXTO_UPB = """
-Eres 'SABIO BÚHO', el asistente oficial de admisiones de la UPB. 
-Responde de forma amable y corta basándote en esto:
-- Carrera IA: 4.5 años.
-- Examen PAA: 200 bs.
-- Puntaje mínimo: 1100.
-- WhatsApp: 78508450.
-"""
+CONTEXTO_UPB = "Eres Sabio Búho, asistente de admisiones de IA en la UPB. Carrera: 4.5 años. Examen: 200 bs."
 
-@app.route('/')
-def home():
-    return "Servidor del Sabio Búho Operativo con Gemini 1.5 Flash Latest"
-
-@app.route('/chat', methods=['POST', 'OPTIONS'])
+@app.route('/chat', methods=['POST'])
 def chat():
-    if request.method == 'OPTIONS':
-        return jsonify({"status": "ok"}), 200
-
     try:
-        data = request.get_json(force=True, silent=True)
-        user_message = data.get('message', '') if data else ""
+        data = request.get_json(force=True)
+        user_msg = data.get('message', '')
         
-        if not user_message:
-            return jsonify({"response": "¡Hola! ¿En qué puedo ayudarte?"}), 200
-
-        # Llamada al modelo con el nuevo nombre compatible
-        prompt = f"{CONTEXTO_UPB}\nUsuario: {user_message}\nSabio Búho:"
-        response = model.generate_content(prompt)
+        prompt = f"{CONTEXTO_UPB}\nUsuario: {user_msg}\nSabio Búho:"
+        respuesta = get_model_response(prompt)
         
-        return jsonify({"response": response.text})
-
+        return jsonify({"response": respuesta})
     except Exception as e:
-        print(f"DEBUG: {e}")
-        # Si el modelo flash falla por región, intentamos con el pro automáticamente
-        return jsonify({"response": "Estoy procesando mucha información, ¿puedes intentar de nuevo?"}), 200
+        return jsonify({"response": "Error de conexión cerebral."}), 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
