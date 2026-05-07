@@ -2,13 +2,23 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
+from dotenv import load_dotenv # NUEVO: Importamos para leer variables locales
+
+# Carga las variables de entorno de un archivo local (si existe)
+load_dotenv()
 
 app = Flask(__name__)
+
 # Permitimos que Google Sites se conecte sin restricciones de seguridad
 CORS(app)
 
-# 1. CONFIGURACIÓN DE LA IA CON TU API KEY
-GEMINI_KEY = "AIzaSyA4EEjVQIihdP3HKLTjfAgpWkLbcQ5bDZc" 
+# 1. CONFIGURACIÓN DE LA IA CON VARIABLES DE ENTORNO
+# os.environ.get lee la clave desde el sistema, de forma invisible y segura
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY") 
+
+if not GEMINI_KEY:
+    raise ValueError("ERROR: No se encontró la GEMINI_API_KEY en las variables de entorno.")
+
 genai.configure(api_key=GEMINI_KEY)
 
 # Usamos el modelo más rápido y actualizado
